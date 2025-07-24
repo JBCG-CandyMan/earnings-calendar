@@ -6,7 +6,7 @@ def fetch_tradingview_earnings():
     url = "https://scanner.tradingview.com/united-states/scan"
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0"  # 👈 這行不能少
     }
 
     today = datetime.utcnow().date()
@@ -26,16 +26,16 @@ def fetch_tradingview_earnings():
 
     response = requests.post(url, json=payload, headers=headers)
 
-    # 檢查回應是否為 JSON
+    # ✅ 檢查是否為 JSON 格式，否則顯示錯誤訊息
     if "application/json" not in response.headers.get("Content-Type", ""):
-        print("❌ Not a JSON response:")
+        print("❌ Not JSON Response:")
         print(response.text[:300])
-        raise Exception("Invalid response type")
+        raise Exception("Invalid response type (not JSON)")
 
     try:
         data = response.json()
     except Exception as e:
-        print("❌ JSON decode error:", e)
+        print("❌ JSON decode failed:", e)
         print(response.text[:300])
         raise
 
