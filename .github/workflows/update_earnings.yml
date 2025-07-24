@@ -1,13 +1,14 @@
 name: Update Earnings JSON
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '30 23 * * 1-5'  # 每週一到五美東時間 23:30 (即美股收市後)
-  workflow_dispatch:  # 手動啟動也可以
+    - cron: '5 0 * * *'  # 每日 UTC 00:05 執行（即香港早上 8:05）
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,15 +19,16 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests beautifulsoup4
 
       - name: Run Python script to fetch earnings
         run: python fetch_earnings.py
 
       - name: Commit and push changes
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git add mock_upcoming_earnings.json
-          git commit -m 'Update earnings JSON automatically' || echo "No changes to commit"
+          git commit -m "Auto-update earnings JSON"
           git push
