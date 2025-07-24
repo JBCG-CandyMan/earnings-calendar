@@ -4,7 +4,10 @@ from datetime import datetime, timedelta
 
 def fetch_tradingview_earnings():
     url = "https://scanner.tradingview.com/united-states/scan"
-    headers = {"content-type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0"
+    }
 
     today = datetime.utcnow().date()
     start_day = today + timedelta(days=2)
@@ -23,18 +26,18 @@ def fetch_tradingview_earnings():
 
     response = requests.post(url, json=payload, headers=headers)
 
-    # ✅ 檢查是否為 JSON 回應
+    # 檢查回應是否為 JSON
     if "application/json" not in response.headers.get("Content-Type", ""):
-        print("❌ Error: Response is not JSON")
-        print(response.text)
-        exit(1)
+        print("❌ Not a JSON response:")
+        print(response.text[:300])
+        raise Exception("Invalid response type")
 
     try:
         data = response.json()
     except Exception as e:
-        print("❌ JSON parsing failed:", e)
-        print(response.text)
-        exit(1)
+        print("❌ JSON decode error:", e)
+        print(response.text[:300])
+        raise
 
     result = []
     for d in data.get("data", []):
@@ -49,13 +52,13 @@ def fetch_tradingview_earnings():
                     "company": name,
                     "date": date_str
                 })
-        except Exception as e:
+        except Exception:
             continue
 
-    # ✅ 儲存成 JSON 檔案
     with open("mock_upcoming_earnings.json", "w") as f:
         json.dump(result, f, indent=2)
-    print(f"✅ Saved {len(result)} earnings items.")
+
+    print(f"✅ Saved {len(result)} earnings items to mock_upcoming_earnings.json")
 
 if __name__ == "__main__":
     fetch_tradingview_earnings()
