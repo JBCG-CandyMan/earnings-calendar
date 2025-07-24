@@ -2,8 +2,8 @@ name: Update Earnings JSON
 
 on:
   schedule:
-    - cron: "30 23 * * *"  # 每日 UTC 23:30，即美國股市收市後（PST 15:30 / EST 18:30）
-  workflow_dispatch:       # 可手動觸發
+    - cron: "30 22 * * 1-5"  # Runs every weekday after U.S. market close (10:30pm UTC)
+  workflow_dispatch:        # Manual trigger
 
 jobs:
   update:
@@ -19,7 +19,7 @@ jobs:
           python-version: 3.10
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install beautifulsoup4 requests
 
       - name: Run Python script to fetch earnings
         run: python fetch_earnings.py
@@ -31,7 +31,8 @@ jobs:
           git add mock_upcoming_earnings.json
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "✅ No changes to commit. Skip push."
+            exit 0
           else
             git commit -m "Update earnings JSON"
             git push
