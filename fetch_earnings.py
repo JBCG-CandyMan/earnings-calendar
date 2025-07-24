@@ -1,64 +1,53 @@
 import requests
-import json
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import json
 
 def fetch_tradingview_earnings():
-    url = "https://scanner.tradingview.com/united-states/scan"
+    base_url = "https://www.tradingview.com/markets/stocks-usa/earnings/"
     headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0"  # 👈 這行不能少
+        "User-Agent": "Mozilla/5.0"
     }
 
+    # 抓取頁面 HTML
+    response = requests.get(base_url, headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch data: {response.status_code}")
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find("table")
+    if not table:
+        raise Exception("Earnings table not found on page")
+
+    rows = table.find_all("tr")[1:]  # skip header
     today = datetime.utcnow().date()
     start_day = today + timedelta(days=2)
     end_day = today + timedelta(days=10)
 
-    payload = {
-        "filter": [
-            {"left": "earnings.earnings_release_date", "operation": "nempty"},
-            {"left": "options.is_tradable", "operation": "equal", "right": True}
-        ],
-        "symbols": {"query": {"types": []}, "tickers": []},
-        "columns": ["symbol", "description", "earnings.earnings_release_date"],
-        "sort": {"sortBy": "earnings.earnings_release_date", "sortOrder": "asc"},
-        "range": [0, 2000]
-    }
+    earnings = []
 
-    response = requests.post(url, json=payload, headers=headers)
-
-    # ✅ 檢查是否為 JSON 格式，否則顯示錯誤訊息
-    if "application/json" not in response.headers.get("Content-Type", ""):
-        print("❌ Not JSON Response:")
-        print(response.text[:300])
-        raise Exception("Invalid response type (not JSON)")
-
-    try:
-        data = response.json()
-    except Exception as e:
-        print("❌ JSON decode failed:", e)
-        print(response.text[:300])
-        raise
-
-    result = []
-    for d in data.get("data", []):
+    for row in rows:
+        cols = row.find_all("td")
+        if len(cols) < 3:
+            continue
         try:
-            symbol = d["d"][0]
-            name = d["d"][1]
-            date_str = d["d"][2].split("T")[0]
-            date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            if start_day <= date <= end_day:
-                result.append({
+            symbol = cols[0].text.strip()
+            name = cols[1].text.strip()
+            date_str = cols[2].text.strip()
+            earnings_date = datetime.strptime(date_str, "%b %d, %Y").date()
+
+            if start_day <= earnings_date <= end_day:
+                earnings.append({
                     "symbol": symbol,
                     "company": name,
-                    "date": date_str
+                    "date": earnings_date.strftime("%Y-%m-%d")
                 })
         except Exception:
             continue
 
+    # 儲存到 JSON
     with open("mock_upcoming_earnings.json", "w") as f:
-        json.dump(result, f, indent=2)
-
-    print(f"✅ Saved {len(result)} earnings items to mock_upcoming_earnings.json")
+        json.dump(earnings, f, indent=2)
 
 if __name__ == "__main__":
     fetch_tradingview_earnings()
