@@ -1,53 +1,47 @@
+# fetch_earnings.py
 import requests
 import json
 from datetime import datetime, timedelta
 
-def fetch_tradingview_earnings():
-    url = "https://scanner.tradingview.com/united-states/scan"
-    headers = {"content-type": "application/json"}
-
-    today = datetime.utcnow().date()
-    start_day = today + timedelta(days=2)
-    end_day = today + timedelta(days=10)
+def fetch_tradingview_earnings(days_ahead=10):
+    url = 'https://scanner.tradingview.com/united-states/scan'
+    headers = {'Content-Type': 'application/json'}
+    today = datetime.utcnow()
+    future = today + timedelta(days=days_ahead)
 
     payload = {
-        "filter": [
-            {"left": "earnings.earnings_release_date", "operation": "nempty"},
-            {"left": "options.is_tradable", "operation": "equal", "right": True}
+        "symbols": {
+            "tickers": [],
+            "query": {"types": []}
+        },
+        "columns": [
+            "logoid", "name", "earnings_release_date", "market_cap_basic", "optionable"
         ],
-        "symbols": {"tickers": [], "query": {"types": []}},
-        "columns": ["symbol", "description", "earnings.earnings_release_date"],
-        "sort": {"sortBy": "earnings.earnings_release_date", "sortOrder": "asc"},
-        "range": [0, 2000]
+        "filter": [
+            {"left": "earnings_release_date", "operation": "nempty"},
+            {"left": "earnings_release_date", "operation": "greater", "right": int(today.timestamp())},
+            {"left": "earnings_release_date", "operation": "less", "right": int(future.timestamp())},
+            {"left": "optionable", "operation": "equal", "right": True}
+        ],
+        "sort": {"sortBy": "earnings_release_date", "sortOrder": "asc"},
+        "options": {"lang": "en"}
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    if response.status_code != 200:
+        raise Exception("Failed to fetch data from TradingView")
 
-        if "application/json" not in response.headers.get("Content-Type", ""):
-            raise Exception("Invalid response type: not JSON")
+    results = response.json().get("data", [])
+    earnings = []
+    for r in results:
+        d = r["d"]
+        ticker = d[1]
+        earnings_date = datetime.utcfromtimestamp(d[2]).strftime("%Y-%m-%d")
+        earnings.append({"symbol": ticker, "date": earnings_date})
 
-        data = response.json()
-
-        results = []
-        for row in data.get("data", []):
-            symbol, company, date_str = row["d"]
-            date_only = date_str.split("T")[0]
-            date_obj = datetime.strptime(date_only, "%Y-%m-%d").date()
-            if start_day <= date_obj <= end_day:
-                results.append({
-                    "symbol": symbol,
-                    "company": company,
-                    "date": date_only
-                })
-
-        with open("mock_upcoming_earnings.json", "w") as f:
-            json.dump(results, f, indent=2)
-        print(f"✅ Saved {len(results)} earnings to mock_upcoming_earnings.json")
-
-    except Exception as e:
-        print("❌ Error:", e)
+    return earnings
 
 if __name__ == "__main__":
-    fetch_tradingview_earnings()
+    earnings = fetch_tradingview_earnings()
+    with open("mock_upcoming_earnings.json", "w") as f:
+        json.dump(earnings, f, indent=2)
