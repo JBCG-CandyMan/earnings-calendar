@@ -2,7 +2,7 @@ name: Update Earnings JSON
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # 每日凌晨 UTC 1:00 執行（即香港時間早上9點）
+    - cron: '0 1 * * *'  # 每日 01:00 UTC，自動更新
   workflow_dispatch:
 
 jobs:
